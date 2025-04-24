@@ -439,7 +439,7 @@ impl<'m> Migrations<'m> {
     /// Returns [`Error::FileLoad`] in case the subdirectory names are incorrect,
     /// or don't contain at least a valid `up.sql` file.
     #[cfg(feature = "from-directory")]
-    pub fn from_directory(dir: &'static Dir<'static>) -> Result<Self> {
+    pub fn from_directory(dir: &'m Dir) -> Result<Self> {
         let migrations = from_directory(dir)?
             .into_iter()
             .collect::<Option<Cow<_>>>()

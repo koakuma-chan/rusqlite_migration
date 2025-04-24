@@ -19,14 +19,14 @@ use crate::{Error, Result, M};
 use include_dir::Dir;
 
 #[derive(Debug, Clone)]
-struct MigrationFile {
+struct MigrationFile<'a> {
     id: NonZeroUsize,
-    name: &'static str,
-    up: &'static str,
-    down: Option<&'static str>,
+    name: &'a str,
+    up: &'a str,
+    down: Option<&'a str>,
 }
 
-fn get_name(value: &'static Dir<'static>) -> Result<&'static str> {
+fn get_name<'a>(value: &'a Dir) -> Result<&'a str> {
     value
         .path()
         .file_name()
@@ -38,10 +38,7 @@ fn get_name(value: &'static Dir<'static>) -> Result<&'static str> {
 }
 
 #[cfg_attr(test, mutants::skip)] // Tested at a high level
-fn get_migrations(
-    name: &'static str,
-    value: &'static Dir<'static>,
-) -> Result<(&'static str, Option<&'static str>)> {
+fn get_migrations<'a>(name: &'a str, value: &'a Dir<'a>) -> Result<(&'a str, Option<&'a str>)> {
     let up = value
         .files()
         .find(|f| f.path().ends_with("up.sql"))
@@ -66,7 +63,7 @@ fn get_migrations(
     Ok((up, down))
 }
 
-fn get_id(file_name: &'static str) -> Result<NonZeroUsize> {
+fn get_id(file_name: &str) -> Result<NonZeroUsize> {
     file_name
         .split_once('-')
         .ok_or(Error::FileLoad(format!(
@@ -86,10 +83,10 @@ fn get_id(file_name: &'static str) -> Result<NonZeroUsize> {
         })
 }
 
-impl TryFrom<&'static Dir<'static>> for MigrationFile {
+impl<'a> TryFrom<&'a Dir<'a>> for MigrationFile<'a> {
     type Error = Error;
 
-    fn try_from(value: &'static Dir<'static>) -> std::result::Result<Self, Self::Error> {
+    fn try_from(value: &'a Dir) -> std::result::Result<Self, Self::Error> {
         let name = get_name(value)?;
         let (up, down) = get_migrations(name, value)?;
         let id = get_id(name)?;
@@ -98,8 +95,8 @@ impl TryFrom<&'static Dir<'static>> for MigrationFile {
     }
 }
 
-impl From<&MigrationFile> for M<'_> {
-    fn from(value: &MigrationFile) -> Self {
+impl<'a> From<&MigrationFile<'a>> for M<'a> {
+    fn from(value: &MigrationFile<'a>) -> Self {
         M::up(value.up)
             .comment(value.name)
             .down(value.down.unwrap_or_default())
@@ -107,7 +104,7 @@ impl From<&MigrationFile> for M<'_> {
 }
 
 #[cfg_attr(test, mutants::skip)] // Tested at a high level
-pub(crate) fn from_directory(dir: &'static Dir<'static>) -> Result<Vec<Option<M<'static>>>> {
+pub(crate) fn from_directory<'a>(dir: &'a Dir) -> Result<Vec<Option<M<'a>>>> {
     let mut migrations: Vec<Option<M>> = vec![None; dir.dirs().count()];
 
     for dir in dir.dirs() {
